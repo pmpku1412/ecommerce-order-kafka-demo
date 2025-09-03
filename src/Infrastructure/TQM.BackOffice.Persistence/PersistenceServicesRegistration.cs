@@ -13,6 +13,10 @@ public static class PersistenceServicesRegistration
         services.AddScoped<IDBAdapter, DBAdapter>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IMailServiceX, MailService>();
+
+        //AddService
+        services.AddScoped<IMasterdataService, MasterdataService>();
+
         return services;
     }
 }

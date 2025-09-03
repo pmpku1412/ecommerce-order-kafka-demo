@@ -271,7 +271,7 @@ public class DBAdapter : IDBAdapter
                     connectionString = _configuration["ConnectionStrings:ESMDataAccess"];
                     break;
                 case DataAccessTypeEnum.XININSURE:
-                    connectionString = _configuration["ConnectionStrings:XininsureDataAccess"];
+                    connectionString = _configuration["ConnectionStrings:XININSURE_DEV"];
                     break;
                 case DataAccessTypeEnum.ESM_DEV:
                     connectionString = _configuration["ConnectionStrings:ESMDevDataAccess"];
@@ -304,7 +304,7 @@ public class DBAdapter : IDBAdapter
                     connectionString = _configuration["ConnectionStrings:DSRAccess"];
                     break;
                 case DataAccessTypeEnum.TQMSALE127:
-                    connectionString = _configuration["ConnectionStrings:TQMSALE127Access"];
+                    connectionString = _configuration["ConnectionStrings:TQMSALE_DEV"];
                     break;
                 default:
                     break;
@@ -323,13 +323,13 @@ public class DBAdapter : IDBAdapter
                             case "PRO" : connectionString = _configuration["ConnectionStrings:ESMDataAccess_PRO"]; break;
                         }
                     } break;
-                    case DataAccessTypeEnum.ESM_TQMSALE:
+                    case DataAccessTypeEnum.XININSURE:
                     {
                         switch (_configuration["Env"].ToUpper())
                         {
-                            case "DEV" : connectionString = _configuration["ConnectionStrings:TQMSALEDataAccess_DEV"]; break;
-                            case "PRE" : connectionString = _configuration["ConnectionStrings:TQMSALEDataAccess_PRE"]; break;
-                            case "PRO" : connectionString = _configuration["ConnectionStrings:TQMSALEDataAccess_PRO"]; break;
+                            case "DEV" : connectionString = _configuration["ConnectionStrings:XININSURE_DEV"]; break;
+                            case "PRE" : connectionString = _configuration["ConnectionStrings:XININSURE_PRE"]; break;
+                            case "PRO" : connectionString = _configuration["ConnectionStrings:XININSURE_PRO"]; break;
                         }
                     } break;
                 }
