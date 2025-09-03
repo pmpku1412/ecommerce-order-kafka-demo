@@ -21,12 +21,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TQM.BackOffice.Identity", "
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TQM.BackOffice.RESTApi", "src\Infrastructure\TQM.BackOffice.RESTApi\TQM.BackOffice.RESTApi.csproj", "{381A2DEF-FADB-402F-9A00-CE653E78D7FB}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TQM.BackOffice.SOAPApi", "src\Infrastructure\TQM.BackOffice.SOAPApi\TQM.BackOffice.SOAPApi.csproj", "{4F8E9DB2-1072-4047-A1DD-F0038C3C761F}"
-EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{99F9E55D-592C-4E82-B930-62EB84439914}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TQM.Backoffice.Application.UnitTests", "test\TQM.Backoffice.Application.UnitTests\TQM.Backoffice.Application.UnitTests.csproj", "{FCBAC827-B87D-492F-9707-A371A23FA4E8}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tool", "Tool", "{E6893D97-BF8C-4A48-843C-B822F7E49209}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TQM.BackOffice.GetAPIPermission", "src\Tool\TQM.BackOffice.GetAPIPermission\TQM.BackOffice.GetAPIPermission.csproj", "{01058A8A-7FB9-4B76-8A3A-A12AF9B6C01A}"

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using TQM.Backoffice.Application.Contracts.Persistence;
 using TQM.BackOffice.Persistence.Services;
 
 namespace TQM.BackOffice.Persistence;
@@ -13,6 +14,11 @@ public static class PersistenceServicesRegistration
         services.AddScoped<IDBAdapter, DBAdapter>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IMailServiceX, MailService>();
+        
+        // Add new repositories
+        services.AddSingleton<IProductRepository, InMemoryProductRepository>();
+        services.AddSingleton<IOrderRepository, InMemoryOrderRepository>();
+        
         return services;
     }
 }
