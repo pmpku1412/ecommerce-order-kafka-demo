@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<ItemGroup>
+	  <Compile Remove="Commands\Paperless\**" />
+	  <Compile Remove="DTOs\Paperless\**" />
+	  <Compile Remove="Queries\Paperless\**" />
+	  <EmbeddedResource Remove="Commands\Paperless\**" />
+	  <EmbeddedResource Remove="DTOs\Paperless\**" />
+	  <EmbeddedResource Remove="Queries\Paperless\**" />
+	  <None Remove="Commands\Paperless\**" />
+	  <None Remove="DTOs\Paperless\**" />
+	  <None Remove="Queries\Paperless\**" />
+	</ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\TQM.Backoffice.Domain\TQM.Backoffice.Core.Domain.csproj" />
+	</ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="10.3.5" />
+		<PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="9.0.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="6.0.0" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="System.Data.OleDb" Version="6.0.0" />
+		<PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="6.15.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Http" Version="2.2.2" />
+	</ItemGroup>
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+</Project>
