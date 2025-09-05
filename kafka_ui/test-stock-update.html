@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Stock Update - Kafka Real-time</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-box me-2"></i>Test Stock Update Real-time</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="stockUpdateForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="productSelect" class="form-label">Select Product</label>
+                                        <select class="form-select" id="productSelect" required>
+                                            <option value="">Loading products...</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="newStock" class="form-label">New Stock Quantity</label>
+                                        <input type="number" class="form-control" id="newStock" min="0" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="reason" class="form-label">Reason</label>
+                                <input type="text" class="form-control" id="reason" placeholder="e.g., Manual adjustment, Inventory count" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="updateStockBtn">
+                                <i class="fas fa-sync-alt me-1"></i>
+                                Update Stock
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Current Products Display -->
+                <div class="card mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6><i class="fas fa-list me-2"></i>Current Products</h6>
+                        <button class="btn btn-sm btn-outline-secondary" id="refreshProducts">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div id="productsDisplay">
+                            <!-- Products will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Real-time Kafka Events -->
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6><i class="fas fa-stream me-2"></i>Real-time Kafka Events</h6>
+                        <span class="badge bg-success" id="monitoringStatus">Monitoring</span>
+                    </div>
+                    <div class="card-body">
+                        <div id="kafkaEvents" style="height: 300px; overflow-y: auto;">
+                            <!-- Kafka events will appear here -->
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger mt-2" id="clearEvents">
+                            <i class="fas fa-trash me-1"></i>
+                            Clear Events
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Event Statistics -->
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h6><i class="fas fa-chart-bar me-2"></i>Event Statistics</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="border rounded p-2">
+                                    <div class="h5 mb-0" id="orderCreatedCount">0</div>
+                                    <small class="text-muted">Orders</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="border rounded p-2">
+                                    <div class="h5 mb-0 text-info" id="stockUpdatedCount">0</div>
+                                    <small class="text-muted">Stock Updates</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="border rounded p-2">
+                                    <div class="h5 mb-0" id="notificationCount">0</div>
+                                    <small class="text-muted">Notifications</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- API Service -->
+    <script src="js/api.js"></script>
+    
+    <!-- Stock Update Test Script -->
+    <script>
+        class StockUpdateTester {
+            constructor() {
+                this.products = [];
+                this.eventCounts = {
+                    'order-created': 0,
+                    'stock-updated': 0,
+                    'notification-sent': 0
+                };
+                this.pollingInterval = 2000; // 2 seconds for faster updates
+                this.pollingTimer = null;
+                this.lastEventCount = 0;
+            }
+
+            async init() {
+                console.log('Initializing Stock Update Tester...');
+                
+                // Setup event listeners
+                this.setupEventListeners();
+                
+                // Load initial data
+                await this.loadProducts();
+                
+                // Start monitoring Kafka events
+                this.startKafkaMonitoring();
+                
+                console.log('Stock Update Tester initialized');
+            }
+
+            setupEventListeners() {
+                // Stock update form
+                document.getElementById('stockUpdateForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.updateStock();
+                });
+
+                // Refresh products
+                document.getElementById('refreshProducts').addEventListener('click', () => {
+                    this.loadProducts();
+                });
+
+                // Clear events
+                document.getElementById('clearEvents').addEventListener('click', () => {
+                    this.clearEvents();
+                });
+            }
+
+            async loadProducts() {
+                try {
+                    const response = await window.apiService.getProducts();
+                    if (response && response.success) {
+                        this.products = response.responseObject || [];
+                        this.populateProductSelect();
+                        this.displayProducts();
+                        console.log('Products loaded:', this.products.length);
+                    }
+                } catch (error) {
+                    console.error('Error loading products:', error);
+                    window.apiService.showNotification('ไม่สามารถโหลดข้อมูลสินค้าได้', 'danger');
+                }
+            }
+
+            populateProductSelect() {
+                const select = document.getElementById('productSelect');
+                select.innerHTML = '<option value="">Select Product</option>';
+                
+                this.products.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product.id;
+                    option.textContent = `${product.name} (Current: ${product.stock})`;
+                    option.dataset.currentStock = product.stock;
+                    select.appendChild(option);
+                });
+            }
+
+            displayProducts() {
+                const container = document.getElementById('productsDisplay');
+                container.innerHTML = '';
+
+                this.products.forEach(product => {
+                    const stockClass = window.apiService.getStockStatusClass(product.stock);
+                    const productDiv = document.createElement('div');
+                    productDiv.className = 'border rounded p-2 mb-2';
+                    productDiv.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>${product.name}</strong><br>
+                                <small class="text-muted">ID: ${product.id}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge ${stockClass}">
+                                    Stock: ${product.stock}
+                                </span>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(productDiv);
+                });
+            }
+
+            async updateStock() {
+                const updateBtn = document.getElementById('updateStockBtn');
+                const productId = document.getElementById('productSelect').value;
+                const newStock = parseInt(document.getElementById('newStock').value);
+                const reason = document.getElementById('reason').value;
+
+                if (!productId || isNaN(newStock) || !reason) {
+                    window.apiService.showNotification('กรุณากรอกข้อมูลให้ครบถ้วน', 'warning');
+                    return;
+                }
+
+                try {
+                    window.apiService.showLoading(updateBtn);
+
+                    const stockData = {
+                        productId: productId,
+                        stock: newStock,
+                        reason: reason
+                    };
+
+                    const response = await window.apiService.updateStock(productId, stockData);
+                    
+                    if (response && response.success) {
+                        window.apiService.showNotification('อัปเดท Stock สำเร็จ! รอดู Kafka Event...', 'success');
+                        
+                        // Clear form
+                        document.getElementById('newStock').value = '';
+                        document.getElementById('reason').value = '';
+                        
+                        // Reload products after a short delay to see the update
+                        setTimeout(() => {
+                            this.loadProducts();
+                        }, 1000);
+                        
+                        // Add immediate event to display
+                        this.addEventToDisplay('stock-updated', `Stock updated for ${productId}: ${reason}`, 'info');
+                        
+                    } else {
+                        throw new Error('Failed to update stock');
+                    }
+                } catch (error) {
+                    console.error('Error updating stock:', error);
+                    const errorMessage = window.apiService.handleApiError(error);
+                    window.apiService.showNotification(errorMessage, 'danger');
+                } finally {
+                    window.apiService.hideLoading(updateBtn);
+                }
+            }
+
+            startKafkaMonitoring() {
+                this.pollingTimer = setInterval(() => {
+                    this.fetchKafkaEvents();
+                }, this.pollingInterval);
+                
+                document.getElementById('monitoringStatus').textContent = 'Monitoring';
+                document.getElementById('monitoringStatus').className = 'badge bg-success';
+            }
+
+            async fetchKafkaEvents() {
+                try {
+                    // Get event statistics
+                    const statsResponse = await window.apiService.getKafkaEventStats();
+                    if (statsResponse && statsResponse.success && statsResponse.responseObject) {
+                        const stats = statsResponse.responseObject;
+                        
+                        // Update event counts
+                        this.eventCounts = { ...stats.eventCounts };
+                        this.updateEventCountsDisplay();
+                        
+                        // Check for new events
+                        const currentTotalEvents = stats.totalEvents;
+                        if (currentTotalEvents > this.lastEventCount) {
+                            // Get recent events
+                            const eventsResponse = await window.apiService.getKafkaEvents();
+                            if (eventsResponse && eventsResponse.success && eventsResponse.responseObject) {
+                                const recentEvents = eventsResponse.responseObject;
+                                
+                                // Display new events
+                                recentEvents.slice(0, 5).forEach(event => {
+                                    this.addEventToDisplay(event.topic, event.message, event.level);
+                                });
+                                
+                                this.lastEventCount = currentTotalEvents;
+                                
+                                // If there's a stock update event, reload products
+                                const hasStockUpdate = recentEvents.some(event => event.topic === 'stock-updated');
+                                if (hasStockUpdate) {
+                                    setTimeout(() => {
+                                        this.loadProducts();
+                                    }, 500);
+                                }
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Failed to fetch Kafka events:', error);
+                    document.getElementById('monitoringStatus').textContent = 'Error';
+                    document.getElementById('monitoringStatus').className = 'badge bg-danger';
+                }
+            }
+
+            updateEventCountsDisplay() {
+                document.getElementById('orderCreatedCount').textContent = this.eventCounts['order-created'] || 0;
+                document.getElementById('stockUpdatedCount').textContent = this.eventCounts['stock-updated'] || 0;
+                document.getElementById('notificationCount').textContent = this.eventCounts['notification-sent'] || 0;
+            }
+
+            addEventToDisplay(topic, message, level) {
+                const container = document.getElementById('kafkaEvents');
+                const eventDiv = document.createElement('div');
+                
+                const levelClass = {
+                    'info': 'text-info',
+                    'success': 'text-success',
+                    'warning': 'text-warning',
+                    'error': 'text-danger'
+                }[level] || 'text-info';
+                
+                const timestamp = new Date().toLocaleTimeString('th-TH');
+                
+                eventDiv.className = 'border-bottom pb-2 mb-2';
+                eventDiv.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <small class="text-muted">${timestamp}</small>
+                        <span class="badge bg-secondary">${topic}</span>
+                    </div>
+                    <div class="${levelClass} small">${message}</div>
+                `;
+                
+                container.insertBefore(eventDiv, container.firstChild);
+                
+                // Keep only recent events (max 20)
+                while (container.children.length > 20) {
+                    container.removeChild(container.lastChild);
+                }
+                
+                // Scroll to top to show new event
+                container.scrollTop = 0;
+            }
+
+            clearEvents() {
+                document.getElementById('kafkaEvents').innerHTML = '';
+                this.addEventToDisplay('system', 'Events cleared', 'info');
+            }
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', async () => {
+            const tester = new StockUpdateTester();
+            await tester.init();
+            
+            // Make it globally available for debugging
+            window.stockTester = tester;
+        });
+    </script>
+</body>
+</html>

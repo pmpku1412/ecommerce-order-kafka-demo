@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product CRUD Testing - E-commerce Kafka Demo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .test-section {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .test-success {
+            background-color: #d1edff;
+            border: 1px solid #0ea5e9;
+            color: #0369a1;
+        }
+        .test-error {
+            background-color: #fee2e2;
+            border: 1px solid #ef4444;
+            color: #dc2626;
+        }
+        .test-info {
+            background-color: #f3f4f6;
+            border: 1px solid #6b7280;
+            color: #374151;
+        }
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="mb-4">
+                    <i class="fas fa-vial text-primary"></i>
+                    Product CRUD Testing Suite
+                </h1>
+                <p class="text-muted">ทดสอบ API endpoints และ Frontend integration สำหรับ Product Management</p>
+            </div>
+        </div>
+
+        <!-- API Connection Status -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="test-section">
+                    <h3><i class="fas fa-plug"></i> API Connection Status</h3>
+                    <div class="d-flex align-items-center">
+                        <span id="connection-status" class="badge bg-secondary">Checking...</span>
+                        <button class="btn btn-sm btn-outline-primary ms-2" onclick="checkConnection()">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                    <div id="connection-result" class="test-result test-info mt-2" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Controls -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="test-section">
+                    <h3><i class="fas fa-play"></i> Test Controls</h3>
+                    <div class="btn-group" role="group">
+                        <button class="btn btn-success" onclick="runAllTests()">
+                            <i class="fas fa-play"></i> Run All Tests
+                        </button>
+                        <button class="btn btn-warning" onclick="clearResults()">
+                            <i class="fas fa-trash"></i> Clear Results
+                        </button>
+                        <button class="btn btn-info" onclick="exportResults()">
+                            <i class="fas fa-download"></i> Export Results
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Individual Tests -->
+        <div class="row">
+            <!-- Test 1: Get Products -->
+            <div class="col-md-6 mb-4">
+                <div class="test-section">
+                    <h4><i class="fas fa-list"></i> Test 1: Get Products</h4>
+                    <p class="text-muted">ทดสอบการดึงรายการสินค้าทั้งหมด</p>
+                    <button class="btn btn-primary" onclick="testGetProducts()">
+                        <i class="fas fa-play"></i> Run Test
+                    </button>
+                    <div id="test1-result"></div>
+                </div>
+            </div>
+
+            <!-- Test 2: Create Product -->
+            <div class="col-md-6 mb-4">
+                <div class="test-section">
+                    <h4><i class="fas fa-plus"></i> Test 2: Create Product</h4>
+                    <p class="text-muted">ทดสอบการสร้างสินค้าใหม่</p>
+                    <button class="btn btn-primary" onclick="testCreateProduct()">
+                        <i class="fas fa-play"></i> Run Test
+                    </button>
+                    <div id="test2-result"></div>
+                </div>
+            </div>
+
+            <!-- Test 3: Update Product -->
+            <div class="col-md-6 mb-4">
+                <div class="test-section">
+                    <h4><i class="fas fa-edit"></i> Test 3: Update Product</h4>
+                    <p class="text-muted">ทดสอบการแก้ไขข้อมูลสินค้า</p>
+                    <button class="btn btn-primary" onclick="testUpdateProduct()">
+                        <i class="fas fa-play"></i> Run Test
+                    </button>
+                    <div id="test3-result"></div>
+                </div>
+            </div>
+
+            <!-- Test 4: Update Stock -->
+            <div class="col-md-6 mb-4">
+                <div class="test-section">
+                    <h4><i class="fas fa-boxes"></i> Test 4: Update Stock</h4>
+                    <p class="text-muted">ทดสอบการอัปเดตจำนวนสต็อก</p>
+                    <button class="btn btn-primary" onclick="testUpdateStock()">
+                        <i class="fas fa-play"></i> Run Test
+                    </button>
+                    <div id="test4-result"></div>
+                </div>
+            </div>
+
+            <!-- Test 5: Delete Product -->
+            <div class="col-md-6 mb-4">
+                <div class="test-section">
+                    <h4><i class="fas fa-trash"></i> Test 5: Delete Product</h4>
+                    <p class="text-muted">ทดสอบการลบสินค้า</p>
+                    <button class="btn btn-primary" onclick="testDeleteProduct()">
+                        <i class="fas fa-play"></i> Run Test
+                    </button>
+                    <div id="test5-result"></div>
+                </div>
+            </div>
+
+            <!-- Test 6: Get Categories -->
+            <div class="col-md-6 mb-4">
+                <div class="test-section">
+                    <h4><i class="fas fa-tags"></i> Test 6: Get Categories</h4>
+                    <p class="text-muted">ทดสอบการดึงรายการหมวดหมู่</p>
+                    <button class="btn btn-primary" onclick="testGetCategories()">
+                        <i class="fas fa-play"></i> Run Test
+                    </button>
+                    <div id="test6-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Results Summary -->
+        <div class="row">
+            <div class="col-12">
+                <div class="test-section">
+                    <h3><i class="fas fa-chart-bar"></i> Test Results Summary</h3>
+                    <div id="test-summary" class="test-result test-info">
+                        No tests run yet. Click "Run All Tests" to start.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/api.js"></script>
+    <script>
+        let testResults = [];
+        let createdProductId = null;
+
+        // Check API connection
+        async function checkConnection() {
+            const statusElement = document.getElementById('connection-status');
+            const resultElement = document.getElementById('connection-result');
+            
+            statusElement.textContent = 'Checking...';
+            statusElement.className = 'badge bg-warning';
+            
+            try {
+                const result = await window.apiService.checkApiHealth();
+                if (result.status === 'connected') {
+                    statusElement.textContent = 'Connected';
+                    statusElement.className = 'badge bg-success';
+                    resultElement.innerHTML = `<strong>✅ API Connected</strong><br>Health check successful`;
+                    resultElement.className = 'test-result test-success';
+                } else {
+                    statusElement.textContent = 'Disconnected';
+                    statusElement.className = 'badge bg-danger';
+                    resultElement.innerHTML = `<strong>❌ API Disconnected</strong><br>Error: ${result.error}`;
+                    resultElement.className = 'test-result test-error';
+                }
+                resultElement.style.display = 'block';
+            } catch (error) {
+                statusElement.textContent = 'Error';
+                statusElement.className = 'badge bg-danger';
+                resultElement.innerHTML = `<strong>❌ Connection Error</strong><br>${error.message}`;
+                resultElement.className = 'test-result test-error';
+                resultElement.style.display = 'block';
+            }
+        }
+
+        // Test functions
+        async function testGetProducts() {
+            await runTest('test1', 'Get Products', async () => {
+                const response = await window.apiService.getProducts();
+                if (response.success && response.responseObject && response.responseObject.length > 0) {
+                    return {
+                        success: true,
+                        message: `Found ${response.responseObject.length} products`,
+                        data: response.responseObject.slice(0, 3) // Show first 3 products
+                    };
+                } else {
+                    throw new Error('No products found or invalid response');
+                }
+            });
+        }
+
+        async function testCreateProduct() {
+            await runTest('test2', 'Create Product', async () => {
+                const productData = {
+                    name: `Test Product ${Date.now()}`,
+                    price: 999.99,
+                    stock: 50,
+                    category: 'Test Category',
+                    description: 'Product created by automated test',
+                    imageUrl: 'https://placehold.jp/1c1c1c/ffffff/300x200.png?text=Test%20Product'
+                };
+
+                const response = await window.apiService.createProduct(productData);
+                if (response.success && response.responseObject) {
+                    createdProductId = response.responseObject.id;
+                    return {
+                        success: true,
+                        message: `Product created with ID: ${createdProductId}`,
+                        data: response.responseObject
+                    };
+                } else {
+                    throw new Error('Failed to create product');
+                }
+            });
+        }
+
+        async function testUpdateProduct() {
+            await runTest('test3', 'Update Product', async () => {
+                if (!createdProductId) {
+                    // Try to create a product first
+                    await testCreateProduct();
+                }
+
+                const updateData = {
+                    id: createdProductId,
+                    name: `Updated Test Product ${Date.now()}`,
+                    price: 1299.99,
+                    category: 'Updated Category',
+                    description: 'Updated by automated test',
+                    imageUrl: 'https://via.placeholder.com/300x200?text=Updated+Product'
+                };
+
+                const response = await window.apiService.updateProduct(createdProductId, updateData);
+                if (response.success && response.responseObject) {
+                    return {
+                        success: true,
+                        message: `Product ${createdProductId} updated successfully`,
+                        data: response.responseObject
+                    };
+                } else {
+                    throw new Error('Failed to update product');
+                }
+            });
+        }
+
+        async function testUpdateStock() {
+            await runTest('test4', 'Update Stock', async () => {
+                if (!createdProductId) {
+                    await testCreateProduct();
+                }
+
+                const stockData = {
+                    productId: createdProductId,
+                    stock: 100,
+                    reason: 'Automated test stock update'
+                };
+
+                const response = await window.apiService.updateStock(createdProductId, stockData);
+                if (response.success && response.responseObject) {
+                    return {
+                        success: true,
+                        message: `Stock updated to ${stockData.stock} for product ${createdProductId}`,
+                        data: response.responseObject
+                    };
+                } else {
+                    throw new Error('Failed to update stock');
+                }
+            });
+        }
+
+        async function testDeleteProduct() {
+            await runTest('test5', 'Delete Product', async () => {
+                if (!createdProductId) {
+                    await testCreateProduct();
+                }
+
+                const response = await window.apiService.deleteProduct(createdProductId);
+                if (response.success) {
+                    const deletedId = createdProductId;
+                    createdProductId = null; // Reset for next tests
+                    return {
+                        success: true,
+                        message: `Product ${deletedId} deleted successfully`,
+                        data: { deletedId: deletedId }
+                    };
+                } else {
+                    throw new Error('Failed to delete product');
+                }
+            });
+        }
+
+        async function testGetCategories() {
+            await runTest('test6', 'Get Categories', async () => {
+                const response = await window.apiService.getCategories();
+                if (response.success && response.responseObject && response.responseObject.length > 0) {
+                    return {
+                        success: true,
+                        message: `Found ${response.responseObject.length} categories`,
+                        data: response.responseObject
+                    };
+                } else {
+                    throw new Error('No categories found or invalid response');
+                }
+            });
+        }
+
+        // Test runner
+        async function runTest(testId, testName, testFunction) {
+            const resultElement = document.getElementById(`${testId}-result`);
+            const startTime = Date.now();
+            
+            resultElement.innerHTML = '<div class="test-result test-info"><i class="fas fa-spinner fa-spin"></i> Running test...</div>';
+            
+            try {
+                const result = await testFunction();
+                const duration = Date.now() - startTime;
+                
+                const resultHtml = `
+                    <div class="test-result test-success">
+                        <strong>✅ ${testName} - PASSED</strong> (${duration}ms)<br>
+                        ${result.message}<br>
+                        <details>
+                            <summary>Response Data</summary>
+                            <pre>${JSON.stringify(result.data, null, 2)}</pre>
+                        </details>
+                    </div>
+                `;
+                
+                resultElement.innerHTML = resultHtml;
+                testResults.push({ test: testName, status: 'PASSED', duration, message: result.message });
+                
+            } catch (error) {
+                const duration = Date.now() - startTime;
+                
+                const resultHtml = `
+                    <div class="test-result test-error">
+                        <strong>❌ ${testName} - FAILED</strong> (${duration}ms)<br>
+                        Error: ${error.message}<br>
+                        <details>
+                            <summary>Error Details</summary>
+                            <pre>${error.stack || error.message}</pre>
+                        </details>
+                    </div>
+                `;
+                
+                resultElement.innerHTML = resultHtml;
+                testResults.push({ test: testName, status: 'FAILED', duration, error: error.message });
+            }
+            
+            updateSummary();
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            testResults = [];
+            clearResults();
+            
+            const tests = [
+                () => testGetProducts(),
+                () => testCreateProduct(),
+                () => testUpdateProduct(),
+                () => testUpdateStock(),
+                () => testDeleteProduct(),
+                () => testGetCategories()
+            ];
+            
+            for (const test of tests) {
+                await test();
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between tests
+            }
+        }
+
+        // Clear results
+        function clearResults() {
+            for (let i = 1; i <= 6; i++) {
+                document.getElementById(`test${i}-result`).innerHTML = '';
+            }
+            testResults = [];
+            updateSummary();
+        }
+
+        // Update summary
+        function updateSummary() {
+            const summaryElement = document.getElementById('test-summary');
+            
+            if (testResults.length === 0) {
+                summaryElement.innerHTML = 'No tests run yet. Click "Run All Tests" to start.';
+                summaryElement.className = 'test-result test-info';
+                return;
+            }
+            
+            const passed = testResults.filter(r => r.status === 'PASSED').length;
+            const failed = testResults.filter(r => r.status === 'FAILED').length;
+            const total = testResults.length;
+            const avgDuration = Math.round(testResults.reduce((sum, r) => sum + r.duration, 0) / total);
+            
+            const summaryHtml = `
+                <strong>Test Results Summary:</strong><br>
+                Total Tests: ${total} | Passed: ${passed} | Failed: ${failed}<br>
+                Average Duration: ${avgDuration}ms<br>
+                Success Rate: ${Math.round((passed / total) * 100)}%
+            `;
+            
+            summaryElement.innerHTML = summaryHtml;
+            summaryElement.className = failed > 0 ? 'test-result test-error' : 'test-result test-success';
+        }
+
+        // Export results
+        function exportResults() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                summary: {
+                    total: testResults.length,
+                    passed: testResults.filter(r => r.status === 'PASSED').length,
+                    failed: testResults.filter(r => r.status === 'FAILED').length
+                },
+                results: testResults
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `product-crud-test-results-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            checkConnection();
+        });
+    </script>
+</body>
+</html>

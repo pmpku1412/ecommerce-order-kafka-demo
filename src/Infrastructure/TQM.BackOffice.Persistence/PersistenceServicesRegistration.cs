@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TQM.BackOffice.Persistence.Services;
+using TQM.Backoffice.Core.Application.Contracts.Infrastructure;
+using TQM.Backoffice.Core.Application.Contracts.Persistence;
 
 namespace TQM.BackOffice.Persistence;
 
@@ -16,6 +18,10 @@ public static class PersistenceServicesRegistration
 
         //AddService
         services.AddScoped<IMasterdataService, MasterdataService>();
+        services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IProductService, ProductService>();
+        services.AddScoped<IKafkaProducer, KafkaProducer>();
+        services.AddSingleton<KafkaConsumerService>();
 
         return services;
     }
