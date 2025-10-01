@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using TQM.Backoffice.Application.Contracts.Infrastructure;
 using TQM.Backoffice.Domain.Events;
 using TQM.Backoffice.Core.Application.Contracts.Persistence;
 using System.Collections.Concurrent;
@@ -85,9 +86,9 @@ public class KafkaConsumerService : IDisposable
 
     private async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _consumer.Subscribe(new[] { "order-created", "stock-updated", "notification-sent" });
+        _consumer.Subscribe(new[] { "order-created", "product-created", "stock-updated", "notification-sent" });
 
-        _logger.LogInformation("Kafka Consumer Service started. Listening to topics: order-created, stock-updated, notification-sent");
+        _logger.LogInformation("Kafka Consumer Service started. Listening to topics: order-created, product-created, stock-updated, notification-sent");
 
         try
         {
@@ -136,6 +137,9 @@ public class KafkaConsumerService : IDisposable
                 case "order-created":
                     await ProcessOrderCreatedEvent(value);
                     break;
+                case "product-created":
+                    await ProcessProductCreatedEvent(value);
+                    break;
                 case "stock-updated":
                     await ProcessStockUpdatedEvent(value);
                     break;
@@ -177,6 +181,55 @@ public class KafkaConsumerService : IDisposable
         }
     }
 
+    private async Task ProcessProductCreatedEvent(string message)
+    {
+        var productEvent = JsonConvert.DeserializeObject<ProductCreatedEvent>(message);
+        if (productEvent != null)
+        {
+            _logger.LogInformation($"Processing Product Created Event for Product: {productEvent.ProductName}");
+            
+            AddEventLog("product-created", 
+                $"New product created: {productEvent.ProductName} - Price: {productEvent.Price:C} - Initial Stock: {productEvent.InitialStock}", 
+                "success", productEvent);
+            
+            try
+            {
+                // Use scoped service to verify product creation
+                using var scope = _serviceProvider.CreateScope();
+                var productService = scope.ServiceProvider.GetRequiredService<IProductService>();
+                
+                // Verify the product exists
+                var product = productService.GetProductById(productEvent.ProductId);
+                if (product != null)
+                {
+                    _logger.LogInformation($"Product creation confirmed: {productEvent.ProductName} (ID: {productEvent.ProductId})");
+                    
+                    // Here you could add additional processing like:
+                    // - Send notifications to administrators
+                    // - Update analytics/reporting data
+                    // - Trigger inventory management processes
+                    // - Update search indexes
+                    
+                    // Simulate processing time
+                    await Task.Delay(50);
+                    
+                    // Send real-time product data update via SignalR
+                    await SendProductDataUpdate("created", product, $"New product created: {productEvent.ProductName}");
+                    
+                    _logger.LogInformation($"Product creation processing completed for: {productEvent.ProductName}");
+                }
+                else
+                {
+                    _logger.LogWarning($"Product {productEvent.ProductId} not found after creation event");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error processing product creation for Product {productEvent.ProductId}");
+            }
+        }
+    }
+
     private async Task ProcessStockUpdatedEvent(string message)
     {
         var stockEvent = JsonConvert.DeserializeObject<StockUpdatedEvent>(message);
@@ -209,6 +262,16 @@ public class KafkaConsumerService : IDisposable
                     
                     // Simulate processing time
                     await Task.Delay(50);
+                    
+                    // Send real-time product data update via SignalR
+                    await SendProductDataUpdate("stock-updated", new
+                    {
+                        product = product,
+                        previousStock = stockEvent.PreviousStock,
+                        newStock = stockEvent.NewStock,
+                        quantityChanged = stockEvent.QuantityChanged,
+                        reason = stockEvent.Reason
+                    }, $"Stock updated for {stockEvent.ProductName}: {stockEvent.PreviousStock} → {stockEvent.NewStock}");
                     
                     _logger.LogInformation($"Stock update processing completed for Product: {stockEvent.ProductName}");
                 }
@@ -282,6 +345,56 @@ public class KafkaConsumerService : IDisposable
         {
             _eventLogs.TryDequeue(out _);
         }
+
+        // Send real-time updates via SignalR
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var signalRService = scope.ServiceProvider.GetService<ISignalRService>();
+                
+                if (signalRService != null)
+                {
+                    // Send the specific event
+                    await signalRService.SendKafkaEventAsync(topic, eventData ?? new { message });
+                    
+                    // Send updated event log
+                    await signalRService.SendEventLogAsync(logEntry);
+                    
+                    // Send updated statistics
+                    var stats = GetEventStatistics();
+                    await signalRService.SendEventStatsAsync(stats);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send SignalR update for event: {Topic}", topic);
+            }
+        });
+    }
+
+    private async Task SendProductDataUpdate(string updateType, object productData, string message)
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var signalRService = scope.ServiceProvider.GetService<ISignalRService>();
+            
+            if (signalRService != null)
+            {
+                await signalRService.SendProductDataUpdateAsync(updateType, new
+                {
+                    product = productData,
+                    message = message,
+                    timestamp = DateTime.UtcNow
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send product data update via SignalR");
+        }
     }
 
     private string GetEventTypeFromTopic(string topic)
@@ -289,6 +402,7 @@ public class KafkaConsumerService : IDisposable
         return topic switch
         {
             "order-created" => "OrderCreatedEvent",
+            "product-created" => "ProductCreatedEvent",
             "stock-updated" => "StockUpdatedEvent",
             "notification-sent" => "NotificationSentEvent",
             "system" => "SystemEvent",

@@ -6,7 +6,7 @@ class App {
         this.products = [];
         this.orders = [];
         this.isDarkTheme = false;
-        this.refreshInterval = 5000; // 5 seconds
+        this.refreshInterval = 30000; // 30 seconds (reduced from 5 seconds since we have SignalR)
         this.refreshTimer = null;
     }
 
@@ -16,6 +16,9 @@ class App {
         
         // Setup event listeners
         this.setupEventListeners();
+        
+        // Setup SignalR event handlers
+        this.setupSignalREventHandlers();
         
         // Load initial data
         await this.loadInitialData();
@@ -666,6 +669,123 @@ Items: ${order.orderItems?.length || 0} items
         
         // Save theme preference
         localStorage.setItem('theme', this.isDarkTheme ? 'dark' : 'light');
+    }
+
+    // Setup SignalR event handlers
+    setupSignalREventHandlers() {
+        if (window.signalRService) {
+            // Handle product data updates
+            window.signalRService.onProductDataUpdated((data) => {
+                console.log('Product data updated via SignalR:', data);
+                this.handleProductDataUpdate(data);
+            });
+
+            // Handle order data updates
+            window.signalRService.onOrderDataUpdated((data) => {
+                console.log('Order data updated via SignalR:', data);
+                this.handleOrderDataUpdate(data);
+            });
+        }
+    }
+
+    // Handle product data updates from SignalR
+    handleProductDataUpdate(data) {
+        const { updateType, productData } = data;
+        
+        switch (updateType) {
+            case 'created':
+                // Add new product to the list
+                if (productData.product) {
+                    const existingIndex = this.products.findIndex(p => p.id === productData.product.id);
+                    if (existingIndex === -1) {
+                        this.products.push(productData.product);
+                        console.log('New product added:', productData.product.name);
+                    }
+                }
+                break;
+                
+            case 'stock-updated':
+                // Update existing product stock
+                if (productData.product) {
+                    const existingIndex = this.products.findIndex(p => p.id === productData.product.id);
+                    if (existingIndex !== -1) {
+                        this.products[existingIndex] = productData.product;
+                        console.log('Product stock updated:', productData.product.name, 'New stock:', productData.newStock);
+                    }
+                }
+                break;
+                
+            case 'updated':
+                // Update existing product
+                if (productData.product) {
+                    const existingIndex = this.products.findIndex(p => p.id === productData.product.id);
+                    if (existingIndex !== -1) {
+                        this.products[existingIndex] = productData.product;
+                        console.log('Product updated:', productData.product.name);
+                    }
+                }
+                break;
+        }
+
+        // Re-render products if we're on the products section
+        if (this.currentSection === 'products') {
+            this.renderProducts();
+        }
+
+        // Update dashboard stats if we're on dashboard
+        if (this.currentSection === 'dashboard') {
+            this.updateDashboardStats();
+        }
+
+        // Show notification
+        if (productData.message) {
+            window.apiService.showNotification(productData.message, 'info');
+        }
+    }
+
+    // Handle order data updates from SignalR
+    handleOrderDataUpdate(data) {
+        const { updateType, orderData } = data;
+        
+        switch (updateType) {
+            case 'created':
+                // Add new order to the list
+                if (orderData.order) {
+                    const existingIndex = this.orders.findIndex(o => o.id === orderData.order.id);
+                    if (existingIndex === -1) {
+                        this.orders.unshift(orderData.order); // Add to beginning
+                        console.log('New order added:', orderData.order.id);
+                    }
+                }
+                break;
+                
+            case 'updated':
+            case 'status-changed':
+                // Update existing order
+                if (orderData.order) {
+                    const existingIndex = this.orders.findIndex(o => o.id === orderData.order.id);
+                    if (existingIndex !== -1) {
+                        this.orders[existingIndex] = orderData.order;
+                        console.log('Order updated:', orderData.order.id);
+                    }
+                }
+                break;
+        }
+
+        // Re-render orders if we're on the orders section
+        if (this.currentSection === 'orders') {
+            this.renderOrders();
+        }
+
+        // Update dashboard stats if we're on dashboard
+        if (this.currentSection === 'dashboard') {
+            this.updateDashboardStats();
+        }
+
+        // Show notification
+        if (orderData.message) {
+            window.apiService.showNotification(orderData.message, 'info');
+        }
     }
 
     // Load theme preference

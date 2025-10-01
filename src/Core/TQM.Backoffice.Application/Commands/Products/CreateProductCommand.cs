@@ -15,6 +15,7 @@ public class CreateProductCommand : IRequest<BaseResponse<ProductResponse>>
     {
         private readonly IProductService _productService;
         private readonly IKafkaProducer _kafkaProducer;
+        
         public CreateProductCommandHandler(IProductService productService, IKafkaProducer kafkaProducer)
         {
             _productService = productService;
@@ -50,20 +51,21 @@ public class CreateProductCommand : IRequest<BaseResponse<ProductResponse>>
                 // Get updated product
                 var updatedProduct = _productService.GetProductById(productId);
 
-                // Publish stock updated event to Kafka
-                var stockEvent = new StockUpdatedEvent
+                // Publish product created event to Kafka
+                var productCreatedEvent = new ProductCreatedEvent
                 {
                     ProductId = productId,
                     ProductName = updatedProduct.Name,
-                    PreviousStock = updatedProduct.Stock,
-                    NewStock = updatedProduct.Stock,
-                    QuantityChanged = updatedProduct.Stock - 0,
-                    UpdatedDate = DateTime.UtcNow,
-                    Reason = "MANUAL_ADJUSTMENT",
-                    OrderId = null
+                    Price = updatedProduct.Price,
+                    InitialStock = updatedProduct.Stock,
+                    Category = updatedProduct.Category,
+                    Description = updatedProduct.Description,
+                    ImageUrl = updatedProduct.ImageUrl,
+                    CreatedDate = DateTime.UtcNow,
+                    CreatedBy = "System" // หรือ user ที่สร้าง
                 };
 
-                await _kafkaProducer.PublishCreateProductAsync(stockEvent);
+                await _kafkaProducer.PublishProductCreatedAsync(productCreatedEvent);
 
                 return new BaseResponse<ProductResponse>
                 {

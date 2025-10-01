@@ -69,23 +69,23 @@ public class KafkaProducer : IKafkaProducer, IDisposable
         }
     }
 
-    public async Task PublishCreateProductAsync(StockUpdatedEvent stockEvent)
+    public async Task PublishProductCreatedAsync(ProductCreatedEvent productEvent)
     {
         try
         {
-            var message = JsonConvert.SerializeObject(stockEvent);
+            var message = JsonConvert.SerializeObject(productEvent);
             var kafkaMessage = new Message<string, string>
             {
-                Key = stockEvent.ProductId,
+                Key = productEvent.ProductId,
                 Value = message
             };
 
-            var result = await _producer.ProduceAsync("stock-updated", kafkaMessage);
-            _logger.LogInformation($"Product Created event published to Kafka. Topic: stock-updated, Partition: {result.Partition}, Offset: {result.Offset}");
+            var result = await _producer.ProduceAsync("product-created", kafkaMessage);
+            _logger.LogInformation($"Product created event published to Kafka. Topic: product-created, Partition: {result.Partition}, Offset: {result.Offset}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Failed to publish stock updated event for product {stockEvent.ProductId}");
+            _logger.LogError(ex, $"Failed to publish product created event for product {productEvent.ProductId}");
             throw;
         }
     }

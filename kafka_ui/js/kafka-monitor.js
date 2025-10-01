@@ -3,15 +3,18 @@ class KafkaMonitor {
     constructor() {
         this.eventCounts = {
             'order-created': 0,
+            'product-created': 0,
             'stock-updated': 0,
             'notification-sent': 0
         };
         this.eventLogs = [];
         this.maxLogs = 100;
         this.isMonitoring = false;
-        this.pollingInterval = 3000; // 3 seconds
+        this.pollingInterval = 10000; // 10 seconds (fallback only)
         this.pollingTimer = null;
         this.lastEventCount = 0;
+        this.useSignalR = true;
+        this.signalRConnected = false;
     }
 
     // Start monitoring Kafka events
@@ -19,14 +22,29 @@ class KafkaMonitor {
         if (this.isMonitoring) return;
         
         this.isMonitoring = true;
-        this.addEventLog('system', 'Kafka monitoring started - connecting to real Kafka events', 'info');
         
-        // Start polling for real events from API
+        // Setup SignalR event handlers
+        this.setupSignalRHandlers();
+        
+        // Check SignalR connection status
+        if (window.signalRService && window.signalRService.connected) {
+            this.signalRConnected = true;
+            this.addEventLog('system', 'Kafka monitoring started - using real-time SignalR connection', 'info');
+            console.log('Kafka monitoring started - using SignalR real-time data');
+        } else {
+            this.addEventLog('system', 'Kafka monitoring started - SignalR not available, using polling fallback', 'warning');
+            console.log('Kafka monitoring started - using polling fallback');
+        }
+        
+        // Start polling as fallback (less frequent when SignalR is available)
         this.pollingTimer = setInterval(() => {
-            this.fetchRealKafkaEvents();
+            if (!this.signalRConnected) {
+                this.fetchRealKafkaEvents();
+            } else {
+                // Just sync stats occasionally when using SignalR
+                this.syncEventStats();
+            }
         }, this.pollingInterval);
-        
-        console.log('Kafka monitoring started - using real Kafka data');
     }
 
     // Stop monitoring
@@ -391,12 +409,175 @@ class KafkaMonitor {
         };
     }
 
+    // Setup SignalR event handlers
+    setupSignalRHandlers() {
+        if (!window.signalRService) return;
+
+        // Handle Kafka events from SignalR
+        window.signalRService.on('kafkaEvent', (data) => {
+            console.log('Received Kafka event via SignalR:', data);
+            this.processSignalRKafkaEvent(data);
+        });
+
+        // Handle event statistics updates
+        window.signalRService.on('eventStats', (data) => {
+            console.log('Received event stats via SignalR:', data);
+            this.updateEventStatsFromSignalR(data);
+        });
+
+        // Handle event log updates
+        window.signalRService.on('eventLog', (data) => {
+            console.log('Received event log via SignalR:', data);
+            this.addSignalREventLog(data);
+        });
+
+        // Handle connection state changes
+        window.signalRService.onConnectionStateChanged((state, message) => {
+            this.handleSignalRConnectionChange(state, message);
+        });
+
+        // Check current connection state
+        if (window.signalRService.connected) {
+            this.signalRConnected = true;
+        }
+    }
+
+    // Process Kafka event from SignalR
+    processSignalRKafkaEvent(data) {
+        const { eventType, eventData, timestamp } = data;
+        
+        if (eventData && eventType) {
+            // Update event counts
+            this.eventCounts[eventType] = (this.eventCounts[eventType] || 0) + 1;
+            
+            // Update UI
+            this.updateKafkaUI();
+            this.updateDashboardStats();
+            
+            // Trigger product refresh if it's a stock update event
+            if (eventType === 'stock-updated' && window.app) {
+                setTimeout(() => {
+                    window.app.loadProducts();
+                }, 500);
+            }
+        }
+    }
+
+    // Update event statistics from SignalR
+    updateEventStatsFromSignalR(data) {
+        const { stats } = data;
+        if (stats && stats.eventCounts) {
+            this.eventCounts = { ...stats.eventCounts };
+            this.updateKafkaUI();
+        }
+    }
+
+    // Add event log from SignalR
+    addSignalREventLog(data) {
+        const { logEntry } = data;
+        if (logEntry) {
+            const formattedLog = {
+                id: logEntry.id || Date.now() + Math.random(),
+                timestamp: new Date(logEntry.timestamp || Date.now()),
+                type: logEntry.topic || logEntry.type || 'unknown',
+                message: logEntry.message || 'No message',
+                level: logEntry.level || 'info'
+            };
+            
+            this.eventLogs.unshift(formattedLog);
+            
+            // Keep only recent logs
+            if (this.eventLogs.length > this.maxLogs) {
+                this.eventLogs = this.eventLogs.slice(0, this.maxLogs);
+            }
+            
+            this.updateEventLogsUI();
+        }
+    }
+
+    // Handle SignalR connection state changes
+    handleSignalRConnectionChange(state, message) {
+        const wasConnected = this.signalRConnected;
+        this.signalRConnected = (state === 'connected');
+        
+        // Update connection status in UI
+        this.updateConnectionStatus(state, message);
+        
+        // Log connection state changes
+        if (state === 'connected' && !wasConnected) {
+            this.addEventLog('system', 'SignalR connected - switching to real-time mode', 'success');
+        } else if (state === 'disconnected' && wasConnected) {
+            this.addEventLog('system', 'SignalR disconnected - falling back to polling mode', 'warning');
+        } else if (state === 'reconnecting') {
+            this.addEventLog('system', 'SignalR reconnecting...', 'info');
+        } else if (state === 'failed') {
+            this.addEventLog('system', `SignalR connection failed: ${message}`, 'error');
+        }
+    }
+
+    // Update connection status in UI
+    updateConnectionStatus(state, message) {
+        const statusElement = document.getElementById('connection-status');
+        const statusIcon = statusElement?.previousElementSibling;
+        
+        if (statusElement && statusIcon) {
+            let statusText = 'Connected';
+            let iconClass = 'fas fa-circle me-1 text-success';
+            
+            switch (state) {
+                case 'connected':
+                    statusText = 'Connected (Real-time)';
+                    iconClass = 'fas fa-circle me-1 text-success';
+                    break;
+                case 'connecting':
+                case 'reconnecting':
+                    statusText = 'Connecting...';
+                    iconClass = 'fas fa-circle me-1 text-warning';
+                    break;
+                case 'disconnected':
+                    statusText = 'Connected (Polling)';
+                    iconClass = 'fas fa-circle me-1 text-info';
+                    break;
+                case 'failed':
+                    statusText = 'Connection Failed';
+                    iconClass = 'fas fa-circle me-1 text-danger';
+                    break;
+            }
+            
+            statusElement.textContent = statusText;
+            statusIcon.className = iconClass;
+        }
+    }
+
+    // Sync event stats (used when SignalR is connected)
+    async syncEventStats() {
+        try {
+            const statsResponse = await window.apiService.getKafkaEventStats();
+            if (statsResponse && statsResponse.success && statsResponse.responseObject) {
+                const stats = statsResponse.responseObject;
+                
+                // Only update if there's a significant difference (to avoid conflicts with SignalR)
+                const currentTotal = Object.values(this.eventCounts).reduce((sum, count) => sum + count, 0);
+                const apiTotal = stats.totalEvents;
+                
+                if (Math.abs(apiTotal - currentTotal) > 5) {
+                    this.eventCounts = { ...stats.eventCounts };
+                    this.updateKafkaUI();
+                }
+            }
+        } catch (error) {
+            console.warn('Failed to sync event stats:', error);
+        }
+    }
+
     // Export logs (for debugging)
     exportLogs() {
         const data = {
             timestamp: new Date().toISOString(),
             eventCounts: this.eventCounts,
-            eventLogs: this.eventLogs
+            eventLogs: this.eventLogs,
+            signalRConnected: this.signalRConnected,
+            connectionInfo: window.signalRService?.getConnectionInfo()
         };
         
         const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

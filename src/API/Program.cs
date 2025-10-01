@@ -1,7 +1,10 @@
 using System.Globalization;
 using API.SwaggerConfig;
 using TQM.Backoffice.Application;
+using TQM.Backoffice.Application.Contracts.Infrastructure;
 using TQM.Backoffice.Application.DTOs.Mail;
+using TQM.BackOffice.API.Hubs;
+using TQM.BackOffice.API.Services;
 using TQM.BackOffice.Identity;
 using TQM.BackOffice.Persistence;
 using TQM.BackOffice.RESTApi;
@@ -27,6 +30,9 @@ builder.Services.ConfigureApplicationServices();
 builder.Services.ConfigurePersistenceServices();
 builder.Services.Configure<MailDTOs.MailSettings>(mailSection);
 
+// Add SignalR
+builder.Services.AddSignalR();
+builder.Services.AddScoped<ISignalRService, SignalRService>();
 
 builder.Services.ConfigureIdentityServices(builder.Configuration);
 builder.Services.ConfigureRESTApiServices();
@@ -34,9 +40,11 @@ builder.Services.ConfigureRESTApiServices();
 
 builder.Services.AddCors(o =>
     {
-        o.AddDefaultPolicy(builder => builder.AllowAnyOrigin()
+        o.AddDefaultPolicy(builder => builder
+            .WithOrigins("http://localhost:3000", "http://127.0.0.1:5500", "http://localhost:5500")
             .AllowAnyMethod()
-            .AllowAnyHeader());
+            .AllowAnyHeader()
+            .AllowCredentials()); // Required for SignalR
     });
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -62,4 +70,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Map SignalR Hub
+app.MapHub<KafkaEventsHub>("/kafkaEventsHub");
+
 app.Run();

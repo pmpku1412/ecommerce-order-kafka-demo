@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../kafka_ui"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "ecommerce-order-kafka-demo"
+	}
+}
